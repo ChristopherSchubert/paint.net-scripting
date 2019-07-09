@@ -1,5 +1,5 @@
-// Name:
-// Submenu:
+// Name:Color Add
+// Submenu:Chris
 // Author:
 // Title:
 // Version:
@@ -8,61 +8,59 @@
 // URL:
 // Help:
 #region UICode
-IntSliderControl Amount1 = 66; // [1,255] Color 1 Tone Band Start
-IntSliderControl Amount2 = 99; // [1,255] Color 1 Tone Band End
-ColorWheelControl Amount3 = ColorBgra.FromBgra(34,34,178,100); // [Firebrick?!] Color Add 1
-BinaryPixelOp Amount4 = LayerBlendModeUtil.CreateCompositionOp(LayerBlendMode.Normal); // Color 1 Blend Operation
-IntSliderControl Amount5 = 105; // [0,255] Color 2 Tone Band Start
-IntSliderControl Amount6 = 125; // [0,255] Color 2 Tone Band End
-ColorWheelControl Amount7 = ColorBgra.FromBgra(0,69,255,100); // [OrangeRed?!] Color Add 2
-BinaryPixelOp Amount8 = LayerBlendModeUtil.CreateCompositionOp(LayerBlendMode.Normal); // Color 2 Blend Operation
-IntSliderControl Amount9 = 130; // [0,255] Color 3 Tone Band Start
-IntSliderControl Amount10 = 175; // [0,255] Color 3 Tone Band End
-ColorWheelControl Amount11 = ColorBgra.FromBgra(32,165,218,100); // [Goldenrod?!] Color Add 3
-BinaryPixelOp Amount12 = LayerBlendModeUtil.CreateCompositionOp(LayerBlendMode.Normal); // Color 3 Blend Operation
+CheckboxControl Amount1 = true; // [0,1] Use Color 1
+ColorWheelControl Amount2 = ColorBgra.FromBgra(0,0,0,255); // [PrimaryColor?] {Amount1} Color  1
+IntSliderControl Amount3 = 66; // [1,255] {Amount1} Tone Start
+IntSliderControl Amount4 = 99; // [1,255] {Amount1} Tone End
+BinaryPixelOp Amount5 = LayerBlendModeUtil.CreateCompositionOp(LayerBlendMode.Normal); // {Amount1} Blend Operation
+CheckboxControl Amount6 = true; // [0,1] Use Color 2
+ColorWheelControl Amount7 = ColorBgra.FromBgra(255,255,255,255); // [SecondaryColor?] {Amount6} Color 2
+IntSliderControl Amount8 = 105; // [0,255] {Amount6} Tone Start
+IntSliderControl Amount9 = 125; // [0,255] {Amount6} Tone End
+BinaryPixelOp Amount10 = LayerBlendModeUtil.CreateCompositionOp(LayerBlendMode.Normal); // {Amount6} Blend Operation
 #endregion
 
-void Render(Surface dst, Surface src, Rectangle rect)
+unsafe void Render(Surface dst, Surface src, Rectangle rect)
 {    
-    var color1ToneBandStart = Amount1;
-    var color1ToneBandEnd = Amount2;
-    var colorAdd1 = Amount3;
-    var color1BlendOp = Amount4;
-
-    var color2ToneBandStart = Amount5;
-    var color2ToneBandEnd = Amount6;
-    var colorAdd2 = Amount7;
-    var color2BlendOp = Amount8;
+    var useColor1 = Amount1;
+    var colorAdd1 = Amount2;
+    var color1ToneBandStart = Amount3;
+    var color1ToneBandEnd = Amount4;
+    var color1BlendOp = Amount5;
     
-    var color3ToneBandStart = Amount9;
-    var color3ToneBandEnd = Amount10;
-    var colorAdd3 = Amount11;
-    var color3BlendOp = Amount12;
+    var useColor2 = Amount6;
+    var colorAdd2 = Amount7;
+    var color2ToneBandStart = Amount8;
+    var color2ToneBandEnd = Amount9;
+    var color2BlendOp = Amount10;
 
     ColorBgra CurrentPixel;
+    ColorBgra* srcPtr;
+    ColorBgra* dstPtr;
+    
     for (int y = rect.Top; y < rect.Bottom; y++)
     {
         if (IsCancelRequested) return;
+        srcPtr = src.GetPointAddressUnchecked(rect.Left, y);
+        dstPtr = dst.GetPointAddressUnchecked(rect.Left, y);
         for (int x = rect.Left; x < rect.Right; x++)
         {
-            CurrentPixel = src[x,y];
+            CurrentPixel = *srcPtr;
             
             var band = (CurrentPixel.R + CurrentPixel.G + CurrentPixel.B) / 3;
             
-            if (band >= color1ToneBandStart && band <= color1ToneBandEnd)
+            if (useColor1 && band >= color1ToneBandStart && band <= color1ToneBandEnd)
             {
                 CurrentPixel = color1BlendOp.Apply(CurrentPixel, colorAdd1);
             }
-            else if (band >= color2ToneBandStart && band <= color2ToneBandEnd)
+            else if (useColor2 && band >= color2ToneBandStart && band <= color2ToneBandEnd)
             {
                 CurrentPixel = color2BlendOp.Apply(CurrentPixel, colorAdd2);
             }
-            else if (band >= color3ToneBandStart && band <= color3ToneBandEnd)
-            {
-                CurrentPixel = color3BlendOp.Apply(CurrentPixel, colorAdd3);
-            }
-            
-            dst[x,y] = CurrentPixel;
+
+            *dstPtr = CurrentPixel;
+            srcPtr++;
+            dstPtr++;
         }
     }
 }
