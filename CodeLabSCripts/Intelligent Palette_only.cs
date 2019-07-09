@@ -18,16 +18,22 @@ IntSliderControl Amount5 = 3; // [0,20] Pre-Blur
 IntSliderControl Amount6 = 10; // [1,100] Color Sampling
 IntSliderControl Amount7 = 5; // [0,50] Narrow Range From Bottom By
 IntSliderControl Amount8 = 5; // [0,50] Narrow Range From Top By
-IntSliderControl Amount9 = 100; // [1,100] Color Frequency Equalization
+IntSliderControl Amount9 = 10; // [1,100] Color Frequency Equalization
 ListBoxControl Amount10 = 0; // Color Partitioning|Tone|Saturation|Value
-IntSliderControl Amount11 = 2; // [0,8] Color Palette Length
-IntSliderControl Amount12 = 2; // [1,32] Color Palette Hue Segmentation
+IntSliderControl Amount11 = 0; // [0,8] Color Palette Length
+IntSliderControl Amount12 = 6; // [1,32] Color Palette Hue Segmentation
 ReseedButtonControl Amount13 = 0; // [255] Reprocess
-IntSliderControl Amount14 = 0; // [-180,180] Hue Adjustment
-IntSliderControl Amount15 = 100; // [1,200] Saturation Adjustment
-IntSliderControl Amount16 = 0; // [-100,100] Lightness Adjustment
-IntSliderControl Amount17 = 0; // [-100,100] Contrast Adjustment
+IntSliderControl Amount14 = 0; // [-180,180,2] Hue Adjustment
+IntSliderControl Amount15 = 100; // [0,400,3] Saturation Adjustment
+IntSliderControl Amount16 = 0; // [-100,100,5] Lightness Adjustment
+IntSliderControl Amount17 = 0; // [-100,100,4] Contrast Adjustment
 CheckboxControl Amount18 = false; // [0,1] Adjust Contrast First
+CheckboxControl Amount19 = true; // [0,1] Replace Color 1
+IntSliderControl Amount20 = 0; // [0,200] Color Index 1
+ColorWheelControl Amount21 = ColorBgra.FromBgr(0,0,0); // [PrimaryColor] Replacement Color 1
+CheckboxControl Amount22 = true; // [0,1] Replace Color 2
+IntSliderControl Amount23 = 1; // [0,200] Color Index 2
+ColorWheelControl Amount24 = ColorBgra.FromBgr(255,255,255); // [SecondaryColor] Replacement Color 2
 #endregion
 
 unsafe void PreRenderInternal(Surface src)
@@ -38,7 +44,7 @@ unsafe void PreRenderInternal(Surface src)
     
     if (IsCancelRequested) return;
     
-    var palette = new IntelligentColorPalette();
+    palette = new IntelligentColorPalette();
     palette.InitializePalette(
         working, 
         paletteSplit, 
@@ -62,9 +68,8 @@ unsafe void RenderInternal(Surface src)
     if (showPalette)
     {
         palette.CopyPaletteToSurface(working, showHalf);
-        return;
     }
-    
+
     if (IsCancelRequested) return;
     
     
@@ -76,8 +81,20 @@ unsafe void RenderInternal(Surface src)
         }
     }
 
-    if (saturationAdjustment != 0 || hueAdjustment != 0)
+    if (saturationAdjustment != 100 || hueAdjustment != 0)
     {
+        if (saturationAdjustment > 300)
+        {
+            HueAndSaturation(working, working, selection, hueAdjustment, 200, lightnessAdjustment);
+            saturationAdjustment.Value -= 100;
+        }
+
+        if (saturationAdjustment > 200)
+        {
+            HueAndSaturation(working, working, selection, hueAdjustment, 200, lightnessAdjustment);
+            saturationAdjustment.Value -= 100;
+        }
+
         HueAndSaturation(working, working, selection, hueAdjustment, saturationAdjustment, lightnessAdjustment);
     }
 
@@ -88,11 +105,71 @@ unsafe void RenderInternal(Surface src)
             BrightnessAndContrast(working, working, selection, 0, contrastAdjustment);
         }
     }
+
+    if (replaceColor1 || replaceColor2)
+    {
+        var colors = GetSurfaceColors(working, selection);
+
+
+        if (replaceColor1 && colorIndex1 >= colors.Length)
+        {
+            working.Clear(replacementColor1);
+            return;
+        }
+
+        if (replaceColor2 && colorIndex2 >= colors.Length)
+        {
+            working.Clear(replacementColor2);
+            return;
+        }
+
+        if (replaceColor1)
+        {    
+            var color = colors[colorIndex1];
+
+            ColorSwap(working, working, color, replacementColor1);
+        }
+    
+        if (replaceColor2)
+        {    
+            var color = colors[colorIndex2];
+
+            ColorSwap(working, working, color, replacementColor2);
+        }
+    }
 }
 
 unsafe void PostRenderInternal(Surface dst)
 {
     dst.CopySurface(working);
+}
+
+
+unsafe ColorBgra[] GetSurfaceColors (Surface src, Rectangle rect)
+{
+    var colors = new HashSet<ColorBgra>();
+
+    for (int y = rect.Top; y < rect.Bottom; y++)
+    {
+        ColorBgra* srcPtr = src.GetPointAddressUnchecked(rect.Left, y);
+
+        for (int x = rect.Left; x < rect.Right; x++)
+        {
+            if (IsCancelRequested) return null;
+
+            if ((*srcPtr).A == 0) 
+            {
+                srcPtr++;
+                continue;
+            }
+
+            colors.Add(*srcPtr);
+
+            srcPtr++;
+        }
+    }
+
+    return colors.ToArray();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -118,6 +195,12 @@ private void AssignUIValues()
     lightnessAdjustment.Value = Amount16;
     contrastAdjustment.Value = Amount17;
     doAdjustContrastFirst.Value = Amount18;
+    replaceColor1.Value = Amount19;
+    colorIndex1.Value = Amount20;
+    replacementColor1.Value = Amount21;
+    replaceColor2.Value = Amount22;
+    colorIndex2.Value = Amount23;
+    replacementColor2.Value = Amount24;
 }
 
 TrackingProperty<bool> showHalf = new TrackingProperty<bool>();
@@ -138,6 +221,12 @@ TrackingProperty<int> saturationAdjustment = new TrackingProperty<int>();
 TrackingProperty<int> lightnessAdjustment = new TrackingProperty<int>();
 TrackingProperty<int> contrastAdjustment = new TrackingProperty<int>();
 TrackingProperty<bool> doAdjustContrastFirst = new TrackingProperty<bool>();
+TrackingProperty<bool> replaceColor1 = new TrackingProperty<bool>();
+TrackingProperty<int> colorIndex1 = new TrackingProperty<int>();
+TrackingProperty<ColorBgra> replacementColor1 = new TrackingProperty<ColorBgra>();
+TrackingProperty<bool> replaceColor2 = new TrackingProperty<bool>();
+TrackingProperty<int> colorIndex2 = new TrackingProperty<int>();
+TrackingProperty<ColorBgra> replacementColor2 = new TrackingProperty<ColorBgra>();
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3380,20 +3469,26 @@ private void RareLog(int x, int y, int howFrequent, string formatString, params 
     }
 }
 
-private void ColorSwap(Surface dst, Surface src, ColorBgra remove, ColorBgra add)
+private unsafe void ColorSwap(Surface dst, Surface src, ColorBgra remove, ColorBgra add)
 {
     for(var y = 0; y < src.Height; y++)
     {
+        ColorBgra* srcPtr = src.GetPointAddressUnchecked(selection.Left, y);
+        ColorBgra* dstPtr = dst.GetPointAddressUnchecked(selection.Left, y);
+
         for(var x = 0; x < src.Width; x++)
         {
-            if (src[x,y] == remove)
+            if (*srcPtr == remove)
             {
-                dst[x,y] = add;
+                *dstPtr = add;
             }
             else
             {
-                dst[x,y] = src[x,y];
+                *dstPtr = *srcPtr;
             }
+
+            srcPtr++;
+            dstPtr++;
         }
     }
 }

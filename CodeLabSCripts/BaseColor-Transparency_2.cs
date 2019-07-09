@@ -12,13 +12,17 @@
 CheckboxControl Amount1 = false; // [0,1] Show Half
 CheckboxControl Amount2 = false; // [0,1] Show Original
 CheckboxControl Amount3 = false; // [0,1] Retain Transparency
-ReseedButtonControl Amount4 = 0; // [255] Reprocess
-CheckboxControl Amount5 = false; // [255] Show Opaque
+CheckboxControl Amount5 = true; // [255] Show Opaque
 #endregion
 
 
 unsafe void PreRenderInternal(Surface src)
 { 
+    
+}
+
+unsafe void RenderInternal(Surface src)
+{
     int sum = 0;
     working.CopySurface(src);
 
@@ -28,6 +32,9 @@ unsafe void PreRenderInternal(Surface src)
 
         for (int x = selection.Left; x < selection.Right; x++)
         {
+    
+            if (IsCancelRequested) return;
+
             ColorBgra work = *workPtr;
 
             if (work.A == byte.MaxValue)
@@ -50,21 +57,30 @@ unsafe void PreRenderInternal(Surface src)
     }
 
     AntiAlias(working4, working, selection, 1, 1, 1);
+    
+    if (IsCancelRequested) return;
      
     if (sum > .1f * (width*height)) {  AntiAlias(working4, working4, selection, 3, 2, 1); } 
+    if (IsCancelRequested) return;
     if (sum > .3f * (width*height)) {  AntiAlias(working4, working4, selection, 3, 2, 1); } 
+    if (IsCancelRequested) return;
     if (sum > .5f * (width*height)) {  AntiAlias(working4, working4, selection, 3, 2, 1); } 
+    if (IsCancelRequested) return;
     if (sum > .7f * (width*height)) {  AntiAlias(working4, working4, selection, 3, 2, 1); } 
+    if (IsCancelRequested) return;
     if (sum > .9f * (width*height)) {  AntiAlias(working4, working4, selection, 3, 2, 1); } 
+    if (IsCancelRequested) return;
 
     working.CopySurface(working4);
-
+     
     for (int y = selection.Top; y < selection.Bottom; y++)
     {
         ColorBgra* workPtr = working.GetPointAddressUnchecked(selection.Left, y);
 
         for (int x = selection.Left; x < selection.Right; x++)
         {
+            if (IsCancelRequested) return;
+
             ColorBgra work = *workPtr;
 
             if (work.A < byte.MaxValue)
@@ -77,12 +93,10 @@ unsafe void PreRenderInternal(Surface src)
             workPtr++;
         } 
     }
-}
 
-unsafe void RenderInternal(Surface src)
-{
+    if (IsCancelRequested) return;
 
-    int sum = 0;
+    sum = 0;
     long sumR = 0;
     long sumG = 0;
     long sumB = 0;
@@ -93,6 +107,8 @@ unsafe void RenderInternal(Surface src)
 
         for (int x = selection.Left; x < selection.Right; x++)
         {
+            if (IsCancelRequested) return;
+
             ColorBgra work = *workPtr;
 
             if (work.A == byte.MaxValue)
@@ -114,6 +130,8 @@ unsafe void RenderInternal(Surface src)
     var directionModifiersY = new int[] {0, 1, 0, -1};
 
     working2.CopySurface(working);
+    
+    if (IsCancelRequested) return;
 
     for(int i = 0; i < iterations; i++)
     {
@@ -129,6 +147,9 @@ unsafe void RenderInternal(Surface src)
 
                 for (int x = selection.Left; x < selection.Right; x++)
                 {
+                    
+                    if (IsCancelRequested) return;
+
                     if (!(
                         x + directionModifiersX[j] < 0         ||
                     x + directionModifiersX[j] > width - 1 ||
@@ -160,6 +181,9 @@ unsafe void RenderInternal(Surface src)
 
         for (int x = selection.Left; x < selection.Right; x++)
         {
+            
+            if (IsCancelRequested) return;
+
             ColorBgra work = *workPtr;
             ColorBgra work4 = *work4Ptr;
 
@@ -206,14 +230,12 @@ private void AssignUIValues()
     showHalf.Value = Amount1;
     showOriginal.Value = Amount2;
     retainTransparency.Value = Amount3;
-    reprocess.Value = (int)Amount4;
     showOpaque.Value = Amount5;
 }
 
 TrackingProperty<bool> showHalf = new TrackingProperty<bool>();
 TrackingProperty<bool> showOriginal = new TrackingProperty<bool>();
 TrackingProperty<bool> retainTransparency = new TrackingProperty<bool>();
-TrackingProperty<int> reprocess = new TrackingProperty<int>();
 TrackingProperty<bool> showOpaque = new TrackingProperty<bool>();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -264,10 +286,10 @@ unsafe void InternalPreRenderingLoop(Surface src)
         {
             working2 = new Surface(src.Size);
         }
-        if (working3 == null)
-        {
-            working3 = new Surface(src.Size);
-        }
+        //if (working3 == null)
+        //{
+        //    working3 = new Surface(src.Size);
+        //}
         if (working4 == null)
         {
             working4 = new Surface(src.Size);
@@ -280,28 +302,15 @@ unsafe void InternalPreRenderingLoop(Surface src)
         {
             return;
         }
-
-        if (reprocess.HasChanged)
-        {
-            preRenderCompleted = false;
-        }
-
-        if (!preRenderCompleted)
-        {
-            Debug.WriteLine("Calling PreRenderInternal.");
-            PreRenderInternal(src);
-
-            if (!IsCancelRequested)
-            {
-                preRenderCompleted = true;
-            }
-        }
+            
+        Debug.WriteLine("Calling PreRenderInternal.");
+        PreRenderInternal(src);
+    
 
         preRenderException = false;
     }
     catch (Exception x)
     {
-        preRenderCompleted = false;
         preRenderException = true;
         Debug.WriteLine(x);
         return;
@@ -314,8 +323,6 @@ unsafe void InternalPreRenderingLoop(Surface src)
 }
 
 bool preRenderException = false;
-bool preRenderCompleted = false;
-
 unsafe void InternalRenderingLoop(Surface src)
 {
     if (preRenderException)
@@ -439,7 +446,7 @@ Stopwatch methodStopwatch = new Stopwatch();
 
 Surface working = null;
 Surface working2 = null;
-Surface working3 = null;
+//Surface working3 = null;
 Surface working4 = null;
 Rectangle selection = default(Rectangle);
 int selectionCenterX;
@@ -457,12 +464,12 @@ protected override void OnDispose(bool disposing)
     {
         // Release any surfaces or effects you've created.
         if (working != null) working.Dispose();
-            if (working2 != null) working2.Dispose();
-            if (working3 != null) working3.Dispose();
-            if (working4 != null) working4.Dispose();
-            working = null;
+        if (working2 != null) working2.Dispose();
+        //if (working3 != null) working3.Dispose();
+        if (working4 != null) working4.Dispose();
+        working = null;
         working2 = null;
-        working3 = null;
+        //working3 = null;
         working4 = null;
     }
 
