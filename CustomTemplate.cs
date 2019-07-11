@@ -1,8 +1,7 @@
-
-// Name:Intelligent Palette
+﻿// Name:New Effect
 // Submenu:Chris
 // Author:
-// Title:Intelligent Palette
+// Title:New Effect
 // Version:
 // Desc:
 // Keywords:
@@ -10,120 +9,24 @@
 // Help:
 // Force Single Render Call
 #region UICode
-ListBoxControl Amount1 = 0; // Show|Effect|Half|Original|Palette
-CheckboxControl Amount3 = true; // [0,1] Retain Transparency
-IntSliderControl Amount5 = 3; // [0,20] Pre-Blur
-IntSliderControl Amount6 = 90; // [1,100] Color Accuracy
-IntSliderControl Amount7 = 1; // [0,50] Narrow Range By
-ListBoxControl Amount10 = 0; // Color Partitioning|Tone|Saturation|Value
-IntSliderControl Amount11 = 3; // [0,8] Color Palette Length
-IntSliderControl Amount12 = 6; // [1,32] Color Palette Hue Segmentation
-ReseedButtonControl Amount13 = 0; // [255] Reprocess
-IntSliderControl Amount14 = 0; // [-180,180,2] Hue Adjustment
-IntSliderControl Amount15 = 100; // [1,1000,3] Saturation Adjustment
-IntSliderControl Amount16 = 0; // [-100,100,5] Lightness Adjustment
-IntSliderControl Amount17 = 0; // [-100,100,4] Contrast Adjustment
-CheckboxControl Amount18 = false; // [0,1] Adjust Contrast First
+ListBoxControl Amount1 = 0; // Show|Effect|Palette|Half Effect|Original
+CheckboxControl Amount2 = false; // [0,1] Retain Transparency
+ReseedButtonControl Amount3 = 0; // [255] Reprocess
 #endregion
+
 
 unsafe void PreRenderInternal(Surface src)
 {
     working.CopySurface(src);
-
-    GaussianBlur(working, working, selection, preBlur);
-    
-    if (IsCancelRequested) return;
-    
-    palette = new IntelligentColorPalette();
-    palette.InitializePalette(
-        working, 
-        paletteSplit, 
-        colorAccuracy, 
-        colorAccuracy, 
-        narrowRangeBy, 
-        narrowRangeBy, 
-        colorPaletteLength, 
-        colorPaletteHueSegmentation);
-
-    if (IsCancelRequested) return;
-
-    palette.ReplaceSurfaceColorsWithPalette(working, working, selection);
-    working2.CopySurface(working);
 }
 
 unsafe void RenderInternal(Surface src)
-{
-   working.CopySurface(working2);
-   
-    if (show.Value == ShowType.Palette)
-    {
-        palette.CopyPaletteToSurface(working, show == ShowType.Half);
-    }
-
-    if (IsCancelRequested) return;
-    
-    
-    if (doAdjustContrastFirst)
-    {
-        if (contrastAdjustment != 0)
-        {
-            BrightnessAndContrast(working, working, selection, 0, contrastAdjustment);
-        }
-    }
-
-    int sat = saturationAdjustment;
-
-    while (sat > 200)
-    {
-        HueAndSaturation(working, working, selection, 0, 200, 0);
-        sat -= 100;
-    } 
-
-    if (saturationAdjustment != 100 || hueAdjustment != 0 || lightnessAdjustment != 0)
-    {
-        HueAndSaturation(working, working, selection, hueAdjustment, sat, lightnessAdjustment);
-    }
-
-    if (!doAdjustContrastFirst)
-    {
-        if (contrastAdjustment != 0)
-        {
-            BrightnessAndContrast(working, working, selection, 0, contrastAdjustment);
-        }
-    }
+{ 
 }
 
 unsafe void PostRenderInternal(Surface dst)
 {
     dst.CopySurface(working);
-}
-
-
-unsafe ColorBgra[] GetSurfaceColors (Surface src, Rectangle rect)
-{
-    var colors = new HashSet<ColorBgra>();
-
-    for (int y = rect.Top; y < rect.Bottom; y++)
-    {
-        ColorBgra* srcPtr = src.GetPointAddressUnchecked(rect.Left, y);
-
-        for (int x = rect.Left; x < rect.Right; x++)
-        {
-            if (IsCancelRequested) return null;
-
-            if ((*srcPtr).A == 0) 
-            {
-                srcPtr++;
-                continue;
-            }
-
-            colors.Add(*srcPtr);
-
-            srcPtr++;
-        }
-    }
-
-    return colors.ToArray();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -132,37 +35,13 @@ unsafe ColorBgra[] GetSurfaceColors (Surface src, Rectangle rect)
 private void AssignUIValues()
 {
     show.Value = (ShowType)Amount1;
-    retainTransparency.Value = Amount3;
-    reprocess.Value = (int)Amount13;
-    preBlur.Value = Amount5;
-    colorAccuracy.Value = 101 - Amount6;
-    narrowRangeBy.Value = Amount7;
-    paletteSplit.Value = (PaletteSplit)(int)Amount10;
-    colorPaletteLength.Value = Amount11;
-    colorPaletteHueSegmentation.Value = Amount12;
-    hueAdjustment.Value = Amount14;
-    saturationAdjustment.Value = Amount15;
-    lightnessAdjustment.Value = Amount16;
-    contrastAdjustment.Value = Amount17;
-    doAdjustContrastFirst.Value = Amount18;
+    retainTransparency.Value = Amount2;
+    reprocess.Value = (int)Amount3;
 }
 
 TrackingProperty<ShowType> show = new TrackingProperty<ShowType>();
 TrackingProperty<bool> retainTransparency = new TrackingProperty<bool>();
 TrackingProperty<int> reprocess = new TrackingProperty<int>();
-TrackingProperty<int> preBlur = new TrackingProperty<int>();
-TrackingProperty<bool> showPalette = new TrackingProperty<bool>();
-TrackingProperty<int> colorAccuracy = new TrackingProperty<int>();
-TrackingProperty<int> narrowRangeBy = new TrackingProperty<int>();
-TrackingProperty<PaletteSplit> paletteSplit = new TrackingProperty<PaletteSplit>();
-TrackingProperty<int> colorPaletteLength = new TrackingProperty<int>();
-TrackingProperty<int> colorPaletteHueSegmentation = new TrackingProperty<int>();
-TrackingProperty<int> hueAdjustment = new TrackingProperty<int>();
-TrackingProperty<int> saturationAdjustment = new TrackingProperty<int>();
-TrackingProperty<int> lightnessAdjustment = new TrackingProperty<int>();
-TrackingProperty<int> contrastAdjustment = new TrackingProperty<int>();
-TrackingProperty<bool> doAdjustContrastFirst = new TrackingProperty<bool>();
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// COMMON CODE BELOW
@@ -379,6 +258,10 @@ unsafe void InternalPostRenderingLoop(Surface dst, Surface src)
         Debug.WriteLine("PostRender: " + processStopwatch.ElapsedMilliseconds.ToString() + " ms");
     }
 }
+public enum ShowType
+{
+    Effect = 0, Half = 1, Original = 2
+}
 
 IntelligentColorPalette palette;
 
@@ -520,6 +403,7 @@ private void GetImageFromClipboard()
         _img = null;
     }
 }
+
 unsafe void CopySurfaceRectangle(Surface dst, Surface src, Rectangle rect)
 {
     for (int y = rect.Top; y < rect.Bottom; y++)
@@ -832,12 +716,10 @@ private void BlendSurfaces(Surface destination, Surface leftHand, Surface rightH
 
                 var lhs = leftHand[x, y];
                 var rhs = rightHand[x, y];
-
                 if (opacity != 0)
                 {
                     rhs.A = opacity;
                 }
-
 
                 var result = lhs;
 
@@ -1278,7 +1160,7 @@ void BrightnessAndContrast(Surface dst, Surface src, Rectangle rect, int brightn
 HueAndSaturationAdjustment hueAndSaturationAdjustment = null;
 PropertyCollection hueAndSaturationAdjustmentProperties = null;
 PropertyBasedEffectConfigToken hueAndSaturationAdjustmentConfigToken = null;
-void HueAndSaturation(Surface dst, Surface src, Rectangle rect, int hue, int saturation, int lightness)
+void HueAndSaturation(Surface dst, Surface src, Rectangle rect, int hue, int saturation)
 {
     if (IsCancelRequested) return;
 
@@ -1295,7 +1177,6 @@ void HueAndSaturation(Surface dst, Surface src, Rectangle rect, int hue, int sat
 
         hueAndSaturationAdjustmentConfigToken.SetPropertyValue(HueAndSaturationAdjustment.PropertyNames.Hue, hue);
         hueAndSaturationAdjustmentConfigToken.SetPropertyValue(HueAndSaturationAdjustment.PropertyNames.Saturation, saturation);
-        hueAndSaturationAdjustmentConfigToken.SetPropertyValue(HueAndSaturationAdjustment.PropertyNames.Lightness, lightness);
         hueAndSaturationAdjustment.SetRenderInfo(hueAndSaturationAdjustmentConfigToken, new RenderArgs(dst), new RenderArgs(src));
 
         hueAndSaturationAdjustment.Render(new Rectangle[1] { rect }, 0, 1);
@@ -1420,35 +1301,21 @@ private Surface GetSurfaceFromToneBand(Surface source, int toneStart, int toneEn
     }
 }
 
-public enum ShowType
-{
-    Effect = 0, Half = 1, Original = 2, Palette = 3
-}
-public enum PaletteSplit
-{
-    Tone = 0, Saturation = 1, Value = 2,
-}
 public class IntelligentColorPalette
 {
     private ColorBgra[][] colorPaletteByHueSegment;
-    private PaletteSplit paletteSplit;
 
-    public void InitializePalette(
-        Surface surface, 
-        PaletteSplit splitType,
-        int colorSampleEfficiency,
-        int colorFrequencyEqualizer, 
-        int excludeFromBottom, 
-        int excludeFromTop, 
-        int colorPaletteLength, 
-        int colorPaletteHueSegmentation
-        )
+    private int lowToneBandLimit = 0;
+    private int highToneBandLimit = 255;
+
+    public void InitializePalette(Surface surface, int colorSampleEfficiency,
+        int colorFrequencyEqualizer, int lowColorLimit, int highColorLimit, int colorPaletteLength, int colorPaletteHueSegmentation)
     {
-        paletteSplit = splitType;
         var alwaysZero = 0;
 
         var colorCounts = new Dictionary<ColorBgra, int>();
-        var range = GetBandRange(paletteSplit);
+        lowToneBandLimit = lowColorLimit;
+        highToneBandLimit = highColorLimit;
 
         ColorBgra CurrentPixel;
         for (int y = 0; y < surface.Height; y += colorSampleEfficiency)
@@ -1457,10 +1324,10 @@ public class IntelligentColorPalette
             {
                 var color = surface[x, y];
                 color.A = 255;
-                
-                var band = GetBandFromColor(color, paletteSplit);
 
-                if (band < excludeFromBottom || band > range - excludeFromTop)
+                var toneBand = ((surface[x, y].R + surface[x, y].G + surface[x, y].B) / 3);
+
+                if (toneBand < lowColorLimit || toneBand > highColorLimit)
                 {
                     continue;
                 }
@@ -1476,31 +1343,30 @@ public class IntelligentColorPalette
             }
         }
 
-        var bandCount = 2 + (int)Math.Pow(2, colorPaletteLength);
+        var toneBandCount = 2 + (int)Math.Pow(2, colorPaletteLength);
 
-        var prePaletteColorsByBand = new List<ColorBgra>[bandCount];
+        var prePaletteColorsByToneBand = new List<ColorBgra>[toneBandCount];
 
-        for (var i = 0; i < bandCount; i++)
+        for (var i = 0; i < toneBandCount; i++)
         {
-            prePaletteColorsByBand[i] = new List<ColorBgra>();
+            prePaletteColorsByToneBand[i] = new List<ColorBgra>();
         }
 
         foreach (var colorCount in colorCounts)
         {
-            var band = GetBandFromColor(colorCount.Key, paletteSplit);
-
-            var normalized = band / range;
-            var final = normalized * bandCount;
+            var band = (colorCount.Key.R + colorCount.Key.G + colorCount.Key.B) / 3f;
+            var normalized = band / 255f;
+            var final = normalized * toneBandCount;
             var bandIndex = (int)(final);
 
-            if (bandIndex == bandCount)
+            if (bandIndex == toneBandCount)
             {
                 bandIndex -= 1;
             }
 
             if (colorCount.Value < colorFrequencyEqualizer)
             {
-                prePaletteColorsByBand[bandIndex].Add(colorCount.Key);
+                prePaletteColorsByToneBand[bandIndex].Add(colorCount.Key);
                 continue;
             }
             else
@@ -1509,28 +1375,28 @@ public class IntelligentColorPalette
 
                 for (var i = 0; i < newColorCount; i++)
                 {
-                    prePaletteColorsByBand[bandIndex].Add(colorCount.Key);
+                    prePaletteColorsByToneBand[bandIndex].Add(colorCount.Key);
                 }
             }
         }
 
-        var toneBandPalettes = new ColorBgra[bandCount][];
+        var toneBandPalettes = new ColorBgra[toneBandCount][];
 
         for (var toneBandIndex = 0; toneBandIndex < toneBandPalettes.Length; toneBandIndex++)
         {
-            toneBandPalettes[toneBandIndex] = GetColorPalette(prePaletteColorsByBand[toneBandIndex].ToArray(), colorPaletteLength);
+            toneBandPalettes[toneBandIndex] = GetColorPalette(prePaletteColorsByToneBand[toneBandIndex].ToArray(), colorPaletteLength);
         }
 
         colorPaletteByHueSegment = new ColorBgra[colorPaletteHueSegmentation][];
 
         for (var i = 0; i < colorPaletteByHueSegment.Length; i++)
         {
-            colorPaletteByHueSegment[i] = new ColorBgra[bandCount];
+            colorPaletteByHueSegment[i] = new ColorBgra[toneBandCount];
         }
 
         for (var hueIndex = 0; hueIndex < colorPaletteByHueSegment.Length; hueIndex++)
         {
-            for (var toneBandIndex = 0; toneBandIndex < bandCount; toneBandIndex++)
+            for (var toneBandIndex = 0; toneBandIndex < toneBandCount; toneBandIndex++)
             {
                 foreach (var color in toneBandPalettes[toneBandIndex])
                 {
@@ -1606,10 +1472,9 @@ public class IntelligentColorPalette
 
         var hueSegment = GetHueSegmentFromHsvColor(hsv, colorPaletteByHueSegment.Length);
 
-        var tone = GetBandFromColor(color, paletteSplit);
-        var range = GetBandRange(paletteSplit);
+        var toneBand = (color.R + color.G + color.B) / 3f;
 
-        var toneBandPercentage = tone / range;
+        var toneBandPercentage = toneBand / 255f;
 
         if (hueSegment == colorPaletteByHueSegment.Length)
         {
@@ -1643,9 +1508,9 @@ public class IntelligentColorPalette
 
         var hueSegment = GetHueSegmentFromHsvColor(hsv, colorPaletteByHueSegment.Length);
 
-        var tone = GetBandFromColor(color, paletteSplit);
-        var range = GetBandRange(paletteSplit);
-        var toneBandPercentage = tone / range;
+        var toneBand = (color.R + color.G + color.B) / 3f;
+
+        var toneBandPercentage = toneBand / 255f;
 
         if (hueSegment == colorPaletteByHueSegment.Length)
         {
@@ -1687,10 +1552,9 @@ public class IntelligentColorPalette
             throw new NotSupportedException("Can't get hue index " + hueSegment.ToString() + " as there are only " + colorPaletteByHueSegment.Length.ToString() + " hues.");
         }
 
-        var band = GetBandFromColor(color, paletteSplit);
-        var range = GetBandRange(paletteSplit);
+        var toneBand = (color.R + color.G + color.B) / 3f;
 
-        var toneBandPercentage = band / range;
+        var toneBandPercentage = toneBand / 255f;
 
         var palette = colorPaletteByHueSegment[hueSegment];
 
@@ -1846,50 +1710,6 @@ public class IntelligentColorPalette
 
         return palette;
     }
-
-    private int GetBandFromColor(ColorBgra color, PaletteSplit split)    
-    {
-        switch(split)
-        {
-            case PaletteSplit.Tone:
-                return GetToneInternal(color);
-                
-            case PaletteSplit.Saturation:
-                return HsvColor.FromColor(color).Saturation;
-                
-            case PaletteSplit.Value:
-                return HsvColor.FromColor(color).Value;               
-
-        }
-
-        return 0;
-    }
-
-    private float GetBandRange(PaletteSplit split)
-    {
-        switch(split)
-        {
-            case PaletteSplit.Tone:
-                return 255f;
-                
-            case PaletteSplit.Saturation:
-                return 100f;
-                
-            case PaletteSplit.Value:
-                return 100f;               
-
-        }
-
-        return 0f;
-    }
-
-    
-    private byte GetToneInternal(ColorBgra color)
-    {
-        var colorSum = (float)(color.R + color.G + color.B);
-
-        return (byte)(int)(colorSum / 3f);
-    }
 }
 
 public class FloodFillColorSet
@@ -2017,45 +1837,45 @@ void SmoothEdges(Surface dst, Surface src, int radius)
 
 public enum BlendModes
 {
-    Normal = 0,
-    Additive = 1,
-    Average = 2,
-    Blue = 3,
-    Color = 4,
-    ColorBurn = 5,
-    ColorDodge = 6,
-    Cyan = 7,
-    Darken = 8,
-    Difference = 9,
-    Divide = 10,
-    Exclusion = 11,
-    Glow = 12,
-    GrainExtract = 13,
-    GrainMerge = 14,
-    Green = 15,
-    HardLight = 16,
-    HardMix = 17,
-    Hue = 18,
-    Lighten = 19,
-    LinearBurn = 20,
-    LinearDodge = 21,
-    LinearLight = 22,
-    Luminosity = 23,
-    Magenta = 24,
-    Multiply = 25,
-    Negation = 26,
-    Overlay = 27,
-    Phoenix = 28,
-    PinLight = 29,
-    Red = 30,
-    Reflect = 31,
-    Saturation = 32,
-    Screen = 33,
-    SignedDifference = 34,
-    SoftLight = 35,
-    Stamp = 36,
-    VividLight = 37,
-    Yellow = 38
+    Normal,
+    Additive,
+    Average,
+    Blue,
+    Color,
+    ColorBurn,
+    ColorDodge,
+    Cyan,
+    Darken,
+    Difference,
+    Divide,
+    Exclusion,
+    Glow,
+    GrainExtract,
+    GrainMerge,
+    Green,
+    HardLight,
+    HardMix,
+    Hue,
+    Lighten,
+    LinearBurn,
+    LinearDodge,
+    LinearLight,
+    Luminosity,
+    Magenta,
+    Multiply,
+    Negation,
+    Overlay,
+    Phoenix,
+    PinLight,
+    Red,
+    Reflect,
+    Saturation,
+    Screen,
+    SignedDifference,
+    SoftLight,
+    Stamp,
+    VividLight,
+    Yellow
 }
 
 private BinaryPixelOp normalOp = null;
@@ -3408,27 +3228,20 @@ private void RareLog(int x, int y, int howFrequent, string formatString, params 
     }
 }
 
-private unsafe void ColorSwap(Surface dst, Surface src, ColorBgra remove, ColorBgra add)
+private void ColorSwap(Surface dst, Surface src, ColorBgra remove, ColorBgra add)
 {
     for(var y = 0; y < src.Height; y++)
     {
-        ColorBgra* srcPtr = src.GetPointAddressUnchecked(selection.Left, y);
-        ColorBgra* dstPtr = dst.GetPointAddressUnchecked(selection.Left, y);
-
         for(var x = 0; x < src.Width; x++)
         {
-            if (*srcPtr == remove)
+            if (src[x,y] == remove)
             {
-                *dstPtr = add;
+                dst[x,y] = add;
             }
             else
             {
-                *dstPtr = *srcPtr;
+                dst[x,y] = src[x,y];
             }
-
-            srcPtr++;
-            dstPtr++;
         }
     }
 }
-
